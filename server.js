@@ -78,7 +78,7 @@ router.route('/insults')
     //.get(authJwtController.isAuthenticated, function (req, res) {
     .get(function (req, res) {
         if (req.body.category){
-
+            console.log("has category supplied")
         }
         else{ //return all insults
             Insult.find().select('insult category').exec(function (err, insults) {

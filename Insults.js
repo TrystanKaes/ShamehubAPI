@@ -8,7 +8,7 @@ mongoose.connect(process.env.DB, { useNewUrlParser: true } );
 mongoose.set('useCreateIndex', true);
 
 var InsultSchema = new Schema({
-    insult: { type: String, required: true, index: { unique: true } },
+    insult: { type: String, enum: ["incorrect password", "username not found", "shamehub update"], required: true, index: { unique: true } },
     category: { type: String, required: true }
 });
 

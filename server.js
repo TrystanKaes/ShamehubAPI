@@ -29,15 +29,13 @@ router.route('/postjwt')
         }
     );
 
-router.route('/users/:userId')
+router.route('/users/:username')
     .get(authJwtController.isAuthenticated, function (req, res) {
-        var id = req.params.userId;
-        User.findById(id, function(err, user) {
+        var username = req.params.username
+        User.findOne({ username: username }).select('name username password').exec(function(err, user) {
             if (err) res.send(err);
-
             var userJson = JSON.stringify(user);
-            // return that user
-            res.json(user);
+            res.json(userJson);
         });
     });
 

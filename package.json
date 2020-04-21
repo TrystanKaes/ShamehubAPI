@@ -9,6 +9,7 @@
   "author": "Shawn McCarthy",
   "license": "ISC",
   "dependencies": {
+    "@octokit/rest": "^17.5.1",
     "bcrypt-nodejs": "0.0.3",
     "body-parser": "^1.18.2",
     "cors": "^2.8.5",
@@ -17,7 +18,8 @@
     "mongoose": "^5.9.4",
     "passport": "^0.4.0",
     "passport-http": "^0.3.0",
-    "passport-jwt": "^3.0.1"
+    "passport-jwt": "^3.0.1",
+    "xmlhttprequest": "^1.8.0"
   },
   "devDependencies": {
     "dotenv": "^6.2.0",

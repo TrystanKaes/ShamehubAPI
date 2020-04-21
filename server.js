@@ -6,6 +6,7 @@ var User = require('./Users');
 var Insult = require('./Insults');
 var jwt = require('jsonwebtoken');
 var cors = require('cors');
+var XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
 
 var app = express();
 module.exports = app; // for testing
@@ -16,6 +17,104 @@ app.use(cors());
 app.use(passport.initialize());
 
 var router = express.Router();
+
+
+function strMapToObj(strMap) {
+    let obj = Object.create(null);
+    for (let [k,v] of strMap) {
+        // We don’t escape the key '__proto__'
+        // which can cause problems on older engines
+        obj[k] = v;
+    }
+    return obj;
+}
+function objToStrMap(obj) {
+    let strMap = new Map();
+    for (let k of Object.keys(obj)) {
+        strMap.set(k, obj[k]);
+    }
+    return strMap;
+}
+
+
+router.route('/github-user/:gitUser')
+    .get(function(req, res)
+        {
+            var git_user = req.params.gitUser;
+            if (!req.params.gitUser) {
+                res.json({success: false, message: 'Please pass a Github username!'});
+            } else {
+                let dict = new Map();
+                let repo_names = [];
+                let commit_messages = [];
+                let commit_dates = [];
+
+                const xhr = new XMLHttpRequest();
+                const name = new XMLHttpRequest();
+                const commits = new XMLHttpRequest();
+
+
+                let url = 'https://api.github.com/';
+                let repo, commit;
+                let profile_name, profile_bio, profile_img;
+
+                // GET /repos/:owner/:repo/git/commits/:commit_sha
+                // https://api.github.com/repos/xfrenchy/battleship/commits
+                profile_name = url.concat(git_user);
+                repo = url.concat("users/").concat(git_user).concat("/repos");
+
+                //open requests
+                xhr.open('GET', repo, false);
+                name.open('GET', profile_name, false);
+
+                xhr.send();
+                name.send();
+
+                const data = JSON.parse(xhr.responseText)
+                const data1 = JSON.parse(name.responseText);
+
+                for (let i in data) {
+                    repo_names.push(data[i].name);
+                }
+
+                let commit_url = "";
+                for (let i in repo_names){
+                    commit_url = url.concat("repos/").concat(git_user).concat("/",repo_names[i]).concat("/commits");
+                    commits.open("GET", commit_url, false);
+                    commits.send();
+                    let data2 = JSON.parse(commits.responseText);
+                    // Inner for loop, responsible for pushing all commits for each repo into the commit_messages array
+                    for (let x in data2){
+                        commit_messages.push(data2[x].commit.message)
+                    }
+                }
+
+                for (let key in data1){
+                    if(key == "name") {
+                        profile_name = data1[key];
+                    }else if(key == "bio"){
+                        profile_bio = data1[key];
+                    }else if(key == "avatar_url"){
+                        profile_img = data1[key];
+                    }
+                }
+
+                dict.set("name_key", profile_name);
+                dict.set("bio_key", profile_bio);
+                dict.set("img_key", profile_img);
+                dict.set("repo_key", repo_names);
+                dict.set("commits_key", commit_messages);
+
+                JSONObj = new Object();
+                JSONObj = strMapToObj(dict);
+
+
+                res.json({success: true, message: JSONObj});
+            }
+        }
+    );
+
+
 
 router.route('/postjwt')
     .post(authJwtController.isAuthenticated, function (req, res) {

@@ -1,10 +1,11 @@
 var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 var bcrypt = require('bcrypt-nodejs');
-//TODO: Review https://mongoosejs.com/docs/validation.html
+require('dotenv').config({ path: '.env' });
 
 mongoose.Promise = global.Promise;
 
+//put in environment file (or variable on heroku)
 mongoose.connect(process.env.DB, { useNewUrlParser: true } );
 mongoose.set('useCreateIndex', true);
 

@@ -4,7 +4,7 @@ var Schema = mongoose.Schema;
 mongoose.Promise = global.Promise;
 
 //put in environment file (or variable on heroku)
-mongoose.connect(process.env.DB, { useNewUrlParser: true } );
+mongoose.connect(process.env.DB, { useNewUrlParser: true, useUnifiedTopology: true } );
 mongoose.set('useCreateIndex', true);
 
 var InsultSchema = new Schema({

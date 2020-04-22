@@ -6,14 +6,20 @@ require('dotenv').config({ path: '.env' });
 mongoose.Promise = global.Promise;
 
 //put in environment file (or variable on heroku)
-mongoose.connect(process.env.DB, { useNewUrlParser: true } );
+mongoose.connect(process.env.DB, { useNewUrlParser: true, useUnifiedTopology: true});
 mongoose.set('useCreateIndex', true);
 
 // user schema
 var UserSchema = new Schema({
     name: String,
     username: { type: String, required: true, index: { unique: true }},
-    password: { type: String, required: true, select: false }
+    password: { type: String, required: true, select: false },
+    github_username: {type: String, required: true, unique: true},
+    profile_img: {type: String, required: false},
+    github_link: {type: String, required: false},
+    bio: {type: String, required: false},
+    new_repo_info: {type: JSON, required: false},
+    repo_info: {type: JSON, required: false}
 });
 
 // hash the password before the user is saved

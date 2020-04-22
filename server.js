@@ -7,6 +7,9 @@ var Insult = require('./Insults');
 var jwt = require('jsonwebtoken');
 var cors = require('cors');
 var XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
+var Github = require('github-api');
+var request = require('request');
+var https = require('https');
 
 var app = express();
 module.exports = app; // for testing
@@ -36,15 +39,97 @@ function objToStrMap(obj) {
     return strMap;
 }
 
+function fetchAllUserData(username) {
+    let dict = new Map();
+    let repo_arr = [];
+    let repo_n_commits = {
+        repo_name: '',
+        commit_msg: []
+    };
+    let repo_names = [];
+    let commit_messages = [];
+    let commit_dates = [];
 
-router.route('/github-user/:gitUser')
-    .get(function(req, res)
-        {
-            var git_user = req.params.gitUser;
+    const xhr = new XMLHttpRequest();
+    const name = new XMLHttpRequest();
+    const commits = new XMLHttpRequest();
+
+
+    let url = 'https://api.github.com/';
+    let repo, commit;
+    let profile_name, profile_bio, profile_img;
+
+    // GET /repos/:owner/:repo/git/commits/:commit_sha
+    // https://api.github.com/repos/xfrenchy/battleship/commits
+    profile_name = url.concat("users/").concat(username);
+    repo = url.concat("users/").concat(username).concat("/repos");
+
+    //open requests
+    xhr.open('GET', repo, false);
+    name.open('GET', profile_name, false);
+
+    xhr.send();
+    name.send();
+
+    const data = JSON.parse(xhr.responseText);
+    const data1 = JSON.parse(name.responseText);
+
+    for (let i in data) {
+        repo_names.push(data[i].name);
+    }
+
+    //retrieve name, bio, and image url
+    profile_name = data1['name'];
+    profile_bio = data1['bio'];
+    profile_img = data1['avatar_url'];
+
+    let commit_url = "";
+
+    //for loop to retrieve user repo and commits
+    for (let i in repo_names){
+        commit_url = url.concat("repos/").concat(username).concat("/",repo_names[i]).concat("/commits");
+        commits.open("GET", commit_url, false);
+        commits.send();
+        let data2 = JSON.parse(commits.responseText);
+        // Inner for loop, responsible for pushing all commits for each repo into the commit_messages array
+
+        //Things to improve here:
+        //-Get rid of commit_messages and push elements directly into JSON array
+        repo_n_commits['repo_name'] = repo_names[i];
+        for (let x in data2){
+            commit_messages.push(data2[x].commit.message);
+        }
+        repo_n_commits['commit_msg'] = commit_messages;
+        var jsonCopy = Object.assign({}, repo_n_commits);   //need to deep copy so that next changes don't affect previous JSON objects (immutable vs mutable change)
+        commit_messages = [];   //emptying array
+        repo_arr.push(jsonCopy);
+    }
+
+    dict.set("name_key", profile_name);
+    dict.set("bio_key", profile_bio);
+    dict.set("img_key", profile_img);
+    dict.set("repo_info", repo_arr);
+
+    JSONObj = new Object();
+    JSONObj = strMapToObj(dict);
+
+
+    return JSONObj;
+}
+
+//retrieves all information about a user, this is like initializing all the data of a user
+/*router.route('/github-user/:gitUser')
+    .get(function(req, res) {
+            let git_user = req.params.gitUser;
             if (!req.params.gitUser) {
                 res.json({success: false, message: 'Please pass a Github username!'});
             } else {
                 let dict = new Map();
+                let repo_arr = [];
+                let repo_n_commits = {
+                    repo_name: '',
+                    commit_msg: []
+                };
                 let repo_names = [];
                 let commit_messages = [];
                 let commit_dates = [];
@@ -84,9 +169,17 @@ router.route('/github-user/:gitUser')
                     commits.send();
                     let data2 = JSON.parse(commits.responseText);
                     // Inner for loop, responsible for pushing all commits for each repo into the commit_messages array
+
+                    //Things to improve here:
+                    //-Get rid of commit_messages and push elements directly into JSON array
+                    repo_n_commits['repo_name'] = repo_names[i];
                     for (let x in data2){
-                        commit_messages.push(data2[x].commit.message)
+                        commit_messages.push(data2[x].commit.message);
                     }
+                    repo_n_commits['commit_msg'] = commit_messages;
+                    var jsonCopy = Object.assign({}, repo_n_commits);   //need to deep copy so that next changes don't affect previous JSON objects (immutable vs mutable change)
+                    commit_messages = [];   //emptying array
+                    repo_arr.push(jsonCopy);
                 }
 
                 for (let key in data1){
@@ -102,8 +195,9 @@ router.route('/github-user/:gitUser')
                 dict.set("name_key", profile_name);
                 dict.set("bio_key", profile_bio);
                 dict.set("img_key", profile_img);
-                dict.set("repo_key", repo_names);
-                dict.set("commits_key", commit_messages);
+                dict.set("repo_info", repo_arr);
+                // dict.set("repo_key", repo_names);
+                // dict.set("commits_key", commit_messages);
 
                 JSONObj = new Object();
                 JSONObj = strMapToObj(dict);
@@ -112,9 +206,7 @@ router.route('/github-user/:gitUser')
                 res.json({success: true, message: JSONObj});
             }
         }
-    );
-
-
+    );*/
 
 router.route('/postjwt')
     .post(authJwtController.isAuthenticated, function (req, res) {
@@ -131,10 +223,9 @@ router.route('/postjwt')
 router.route('/users/:username')
     .get(authJwtController.isAuthenticated, function (req, res) {
         var username = req.params.username
-        User.findOne({ username: username }).select('name username password').exec(function(err, user) {
+        User.findOne({ username: username }).exec(function(err, user) {
             if (err) res.send(err);
-            var userJson = JSON.stringify(user);
-            res.json(userJson);
+                res.send(user._doc);
         });
     });
 
@@ -148,14 +239,22 @@ router.route('/users')
     });
 
 router.post('/signup', function(req, res) {
-    if (!req.body.username || !req.body.password) {
-        res.json({success: false, message: 'Please pass username and password.'});
+    if (!req.body.username || !req.body.password || !req.body.github_username) {
+        res.json({success: false, message: 'Please pass github username, username, and password.'});
     }
     else {
         var user = new User();
-        user.name = req.body.name;
+        //retrieve all github information about this specific user
+        var jsonInfo = fetchAllUserData(req.body.github_username);
+        user.name = jsonInfo['name_key'];
         user.username = req.body.username;
         user.password = req.body.password;
+        user.github_username = req.body.github_username;
+        user.profile_img = jsonInfo['img_key'];
+        user.github_link = "https://github.com/" + req.body.github_username;
+        user.bio = jsonInfo['bio_key'];
+        user.new_repo_info = null;
+        user.repo_info = jsonInfo['repo_info'];
         // save the user
         user.save(function(err) {
             if (err) {
@@ -220,7 +319,7 @@ router.route('/insults')
         });
     });
 
-    router.post('/signin', function(req, res) {
+router.post('/signin', function(req, res) {
         var userNew = new User();
         userNew.name = req.body.name;
         userNew.username = req.body.username;

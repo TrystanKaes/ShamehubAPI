@@ -10,6 +10,7 @@ mongoose.connect(process.env.DB, { useNewUrlParser: true, useUnifiedTopology: tr
 mongoose.set('useCreateIndex', true);
 
 // user schema
+//TODO add an array of commits that the user has chosen to show for his/her profile
 var UserSchema = new Schema({
     name: String,
     username: { type: String, required: true, index: { unique: true }},

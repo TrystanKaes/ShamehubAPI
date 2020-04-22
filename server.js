@@ -31,6 +31,7 @@ function strMapToObj(strMap) {
     }
     return obj;
 }
+
 function objToStrMap(obj) {
     let strMap = new Map();
     for (let k of Object.keys(obj)) {
@@ -38,7 +39,7 @@ function objToStrMap(obj) {
     }
     return strMap;
 }
-
+//retrieves all information about a user, this is like initializing all the data of a user
 function fetchAllUserData(username) {
     let dict = new Map();
     let repo_arr = [];
@@ -117,9 +118,36 @@ function fetchAllUserData(username) {
     return JSONObj;
 }
 
-//retrieves all information about a user, this is like initializing all the data of a user
-/*router.route('/github-user/:gitUser')
+//Updates a specific value of a user by calling githubs API to fetch the data that needs to be updated
+router.route('/update/:github_user/:variable/:repo_name?')
     .get(function(req, res) {
+        //First thing first, we want to map out which path we have to take,
+        // are we updating info about the name/bio/image(profile), or are we updating repo and commits?
+
+        //API call = 1
+        if(req.params.variable === "profile" && req.params.github_user){
+            //call API to retrieve profile info (API call = 1)
+        }
+        //API call = 2n
+        else if(req.params.variable === "repo" && req.params.github_user){
+            //call API to retrieve all repos for this user (API call = n)
+            //We will also retrieve commits for any new repo (API call = n)
+        }
+        //API call = 1
+        else if(req.params.variable === "commit" && req.params.github_user){
+            //call API on that specific repo to fetch all existing commits
+            if(!req.params.repo_name){
+                res.status(400).send({success: false, msg: "Please specify the repo name. Example: '/update/TrystanKaes/commit/ShamehubAPI'"})
+            }
+        }
+        else{
+            res.status(400).send({success: false, msg: "Could not understand what to update and/or for who.\n " +
+                    "Please specify if it's 'profile', 'repo', or 'commit'. Ex: '/update/xFrenchy/profile'"})
+        }
+
+
+
+
             let git_user = req.params.gitUser;
             if (!req.params.gitUser) {
                 res.json({success: false, message: 'Please pass a Github username!'});
@@ -206,7 +234,7 @@ function fetchAllUserData(username) {
                 res.json({success: true, message: JSONObj});
             }
         }
-    );*/
+    );
 
 router.route('/postjwt')
     .post(authJwtController.isAuthenticated, function (req, res) {

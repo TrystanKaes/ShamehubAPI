@@ -117,7 +117,7 @@ function fetchAllUserData(username) {
 
     return JSONObj;
 }
-
+//retrieves all information about the users profile such as name, bio, picture, and returns it
 function fetchProfileData(username){
     //create XMLHttp object
     const profile = new XMLHttpRequest();
@@ -141,6 +141,48 @@ function fetchProfileData(username){
     JSONObj = new Object();
     JSONObj = strMapToObj(dict);
     return JSONObj;
+}
+//retrieves all commits from a specific repo of a specific user and returns it
+function fetchCommitData(username, repo_name, current_commits){
+    //create XMLHttp object
+    const commits = new XMLHttpRequest();
+    //create path for request
+    let commit_path = 'https://api.github.com/repos/'.concat(username).concat('/', repo_name).concat('/commits');
+    //open request
+    commits.open('GET', commit_path, false);
+    //send request
+    commits.send();
+    //parse response
+    const data = JSON.parse(commits.responseText);
+    //retrieve commit messages
+    let commit_messages = [];
+    let recent_commits = [];
+    let repo_n_commits = {
+        repo_name: repo_name,
+        commit_msg: [],
+        new_commits: []
+    };
+    for (let x in data){
+        commit_messages.push(data[x].commit.message);
+    }
+    //Figure out if there has been any new commits
+    if(commit_messages.length > current_commits.length){
+        //new commits detected, this must mean that commit messages must have a longer length
+        let difference = commit_messages.length - current_commits.length;
+        for(let i = 0; i < difference; ++i){
+            //the first index is the most recent message
+            recent_commits.push(commit_messages[i]);
+        }
+    }
+    else{
+        //nothing new
+        recent_commits = null;
+    }
+    //update JSON
+    repo_n_commits['commit_msg'] = commit_messages;
+    repo_n_commits['new_commits'] = {repo_name: repo_name, commit_msg: recent_commits};
+    //return JSON
+    return repo_n_commits;
 }
 
 //Updates a specific value of a user by calling githubs API to fetch the data that needs to be updated
@@ -168,10 +210,8 @@ router.route('/update/:github_user/:variable/:repo_name?')
                                 profile_img: jsonResult['img_key'], bio: jsonResult['bio_key']
                             }
                         }).exec(function(err, result){
-                            console.log(result);
                             res.status(200).send({success: true, msg: 'User profile has been updated!'});
                         });
-
                     } catch (e) {
                         print(e);
                     }
@@ -184,6 +224,35 @@ router.route('/update/:github_user/:variable/:repo_name?')
         else if (req.params.variable === "repo" && req.params.github_user) {
             //call API to retrieve all repos for this user (API call = n)
             //We will also retrieve commits for any new repo (API call = n)
+
+            User.findOne({github_username: req.params.github_user}).exec(function (err, user) {
+                if (err) {
+                    res.send(err);
+                }
+                //if user exists, aka a match was found
+                if (user) {
+                    //TODO implement this
+                    //call API to retrieve repo and commit info (API call = 2n)
+
+                    /*let jsonResult = fetchProfileData(req.params.github_user);
+                    try to update the user
+                    try {
+                        User.updateOne({github_username: req.params.github_user}, {
+                            $set: {
+                                name: jsonResult['name_key'],
+                                profile_img: jsonResult['img_key'], bio: jsonResult['bio_key']
+                            }
+                        }).exec(function(err, result){
+                            console.log(result);
+                            res.status(200).send({success: true, msg: 'User profile has been updated!'});
+                        });
+                    } catch (e) {
+                        print(e);
+                    }*/
+                } else {
+                    res.status(400).send({success: false, msg: 'No match for this user'});
+                }
+            });
         }
         //API call = 1
         else if (req.params.variable === "commit" && req.params.github_user) {
@@ -194,6 +263,69 @@ router.route('/update/:github_user/:variable/:repo_name?')
                     msg: "Please specify the repo name. Example: '/update/TrystanKaes/commit/ShamehubAPI'"
                 })
             }
+
+            User.findOne({github_username: req.params.github_user}).exec(function (err, user) {
+                if (err) {
+                    res.send(err);
+                }
+                //if user exists, aka a match was found
+                if (user) {
+                    //TODO implement this
+                    //call API to retrieve commits of specific repo (API call = 1)
+
+                    //Get the current repo_info field
+                    let current_repo_field = user._doc.repo_info.slice();  //deep copy for immutable change later on
+                    //Get the current commit history of that specific repo from our Database
+                    let specific_commit = [];
+                    let index = 0;
+                    for(let i = 0; i < current_repo_field.length; ++i){
+                        if(current_repo_field[i]['repo_name'] === req.params.repo_name){
+                            specific_commit = current_repo_field[i]['commit_msg'];
+                            index = i;
+                            break;
+                        }
+                    }
+                    let jsonResult = fetchCommitData(req.params.github_user, req.params.repo_name, specific_commit);
+                    //update our commit history for that repo
+                    current_repo_field[index]['commit_msg'] = jsonResult['commit_msg'];
+                    //try to update the user repo info
+                    //TODO get the $ifNull working
+                    // (https://docs.mongodb.com/manual/reference/operator/aggregation/ifNull/)
+                    // (https://docs.mongodb.com/manual/reference/method/db.collection.updateOne/)
+                    if(jsonResult['new_commits']['commit_msg'] != null){
+                        try {
+                            User.updateOne({github_username: req.params.github_user}, {
+                                $set: {
+                                    repo_info: current_repo_field,
+                                    new_repo_info: jsonResult['new_commits']
+                                    //new_repo_info: {$ifNull: [jsonResult['new_commits']['commit_msg'] , null] }
+                                }
+                            }).exec(function(err, result){
+                                res.status(200).send({success: true, msg: 'User commits for ' +req.params.repo_name + ' has been updated!'});
+                            });
+                        } catch (e) {
+                            print(e);
+                        }
+                    }
+                    else{
+                        try {
+                            User.updateOne({github_username: req.params.github_user}, {
+                                $set: {
+                                    repo_info: current_repo_field,
+                                    new_repo_info: null
+                                }
+                            }).exec(function(err, result){
+                                res.status(200).send({success: 'not really', msg: 'Nothing to update for ' +req.params.repo_name + '!'});
+                            });
+                        } catch (e) {
+                            print(e);
+                        }
+                    }
+
+                } else {
+                    res.status(400).send({success: false, msg: 'No match for this user'});
+                }
+            });
         } else {
             res.status(400).send({
                 success: false, msg: "Could not understand what to update and/or for who.\n " +

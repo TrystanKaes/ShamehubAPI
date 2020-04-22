@@ -7,9 +7,9 @@ var Insult = require('./Insults');
 var jwt = require('jsonwebtoken');
 var cors = require('cors');
 var XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
-var Github = require('github-api');
-var request = require('request');
-var https = require('https');
+// var Github = require('github-api');
+// var request = require('request');
+// var https = require('https');
 
 var app = express();
 module.exports = app; // for testing

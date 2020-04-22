@@ -185,6 +185,7 @@ function fetchCommitData(username, repo_name, current_commits){
     return repo_n_commits;
 }
 
+//TODO return user info after it's been updated instead of just a message saying it was successful
 //Updates a specific value of a user by calling githubs API to fetch the data that needs to be updated
 router.route('/update/:github_user/:variable/:repo_name?')
     .get(function(req, res) {

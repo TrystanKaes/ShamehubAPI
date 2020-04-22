@@ -118,6 +118,31 @@ function fetchAllUserData(username) {
     return JSONObj;
 }
 
+function fetchProfileData(username){
+    //create XMLHttp object
+    const profile = new XMLHttpRequest();
+    //create path for request
+    let profile_path = 'https://api.github.com/users/'.concat(username);
+    //open request
+    profile.open('GET', profile_path, false);
+    //send request
+    profile.send();
+    //parse response
+    const data = JSON.parse(profile.responseText);
+    //retrieve name, bio, and image url
+    let profile_name = data['name'];
+    let profile_bio = data['bio'];
+    let profile_img = data['avatar_url'];
+    //return JSON
+    let dict = new Map();
+    dict.set("name_key", profile_name);
+    dict.set("bio_key", profile_bio);
+    dict.set("img_key", profile_img);
+    JSONObj = new Object();
+    JSONObj = strMapToObj(dict);
+    return JSONObj;
+}
+
 //Updates a specific value of a user by calling githubs API to fetch the data that needs to be updated
 router.route('/update/:github_user/:variable/:repo_name?')
     .get(function(req, res) {
@@ -125,116 +150,57 @@ router.route('/update/:github_user/:variable/:repo_name?')
         // are we updating info about the name/bio/image(profile), or are we updating repo and commits?
 
         //API call = 1
-        if(req.params.variable === "profile" && req.params.github_user){
-            //call API to retrieve profile info (API call = 1)
+        if (req.params.variable === "profile" && req.params.github_user) {
+            //Find user in DB
+            User.findOne({github_username: req.params.github_user}).exec(function (err, user) {
+                if (err) {
+                    res.send(err);
+                }
+                //if user exists, aka a match was found
+                if (user) {
+                    //call API to retrieve profile info (API call = 1)
+                    let jsonResult = fetchProfileData(req.params.github_user);
+                    //try to update the user
+                    try {
+                        User.updateOne({github_username: req.params.github_user}, {
+                            $set: {
+                                name: jsonResult['name_key'],
+                                profile_img: jsonResult['img_key'], bio: jsonResult['bio_key']
+                            }
+                        }).exec(function(err, result){
+                            console.log(result);
+                            res.status(200).send({success: true, msg: 'User profile has been updated!'});
+                        });
+
+                    } catch (e) {
+                        print(e);
+                    }
+                } else {
+                    res.status(400).send({success: false, msg: 'No match for this user'});
+                }
+            });
         }
         //API call = 2n
-        else if(req.params.variable === "repo" && req.params.github_user){
+        else if (req.params.variable === "repo" && req.params.github_user) {
             //call API to retrieve all repos for this user (API call = n)
             //We will also retrieve commits for any new repo (API call = n)
         }
         //API call = 1
-        else if(req.params.variable === "commit" && req.params.github_user){
+        else if (req.params.variable === "commit" && req.params.github_user) {
             //call API on that specific repo to fetch all existing commits
-            if(!req.params.repo_name){
-                res.status(400).send({success: false, msg: "Please specify the repo name. Example: '/update/TrystanKaes/commit/ShamehubAPI'"})
+            if (!req.params.repo_name) {
+                res.status(400).send({
+                    success: false,
+                    msg: "Please specify the repo name. Example: '/update/TrystanKaes/commit/ShamehubAPI'"
+                })
             }
+        } else {
+            res.status(400).send({
+                success: false, msg: "Could not understand what to update and/or for who.\n " +
+                    "Please specify if it's 'profile', 'repo', or 'commit'. Ex: '/update/xFrenchy/profile'"
+            })
         }
-        else{
-            res.status(400).send({success: false, msg: "Could not understand what to update and/or for who.\n " +
-                    "Please specify if it's 'profile', 'repo', or 'commit'. Ex: '/update/xFrenchy/profile'"})
-        }
-
-
-
-
-            let git_user = req.params.gitUser;
-            if (!req.params.gitUser) {
-                res.json({success: false, message: 'Please pass a Github username!'});
-            } else {
-                let dict = new Map();
-                let repo_arr = [];
-                let repo_n_commits = {
-                    repo_name: '',
-                    commit_msg: []
-                };
-                let repo_names = [];
-                let commit_messages = [];
-                let commit_dates = [];
-
-                const xhr = new XMLHttpRequest();
-                const name = new XMLHttpRequest();
-                const commits = new XMLHttpRequest();
-
-
-                let url = 'https://api.github.com/';
-                let repo, commit;
-                let profile_name, profile_bio, profile_img;
-
-                // GET /repos/:owner/:repo/git/commits/:commit_sha
-                // https://api.github.com/repos/xfrenchy/battleship/commits
-                profile_name = url.concat(git_user);
-                repo = url.concat("users/").concat(git_user).concat("/repos");
-
-                //open requests
-                xhr.open('GET', repo, false);
-                name.open('GET', profile_name, false);
-
-                xhr.send();
-                name.send();
-
-                const data = JSON.parse(xhr.responseText)
-                const data1 = JSON.parse(name.responseText);
-
-                for (let i in data) {
-                    repo_names.push(data[i].name);
-                }
-
-                let commit_url = "";
-                for (let i in repo_names){
-                    commit_url = url.concat("repos/").concat(git_user).concat("/",repo_names[i]).concat("/commits");
-                    commits.open("GET", commit_url, false);
-                    commits.send();
-                    let data2 = JSON.parse(commits.responseText);
-                    // Inner for loop, responsible for pushing all commits for each repo into the commit_messages array
-
-                    //Things to improve here:
-                    //-Get rid of commit_messages and push elements directly into JSON array
-                    repo_n_commits['repo_name'] = repo_names[i];
-                    for (let x in data2){
-                        commit_messages.push(data2[x].commit.message);
-                    }
-                    repo_n_commits['commit_msg'] = commit_messages;
-                    var jsonCopy = Object.assign({}, repo_n_commits);   //need to deep copy so that next changes don't affect previous JSON objects (immutable vs mutable change)
-                    commit_messages = [];   //emptying array
-                    repo_arr.push(jsonCopy);
-                }
-
-                for (let key in data1){
-                    if(key == "name") {
-                        profile_name = data1[key];
-                    }else if(key == "bio"){
-                        profile_bio = data1[key];
-                    }else if(key == "avatar_url"){
-                        profile_img = data1[key];
-                    }
-                }
-
-                dict.set("name_key", profile_name);
-                dict.set("bio_key", profile_bio);
-                dict.set("img_key", profile_img);
-                dict.set("repo_info", repo_arr);
-                // dict.set("repo_key", repo_names);
-                // dict.set("commits_key", commit_messages);
-
-                JSONObj = new Object();
-                JSONObj = strMapToObj(dict);
-
-
-                res.json({success: true, message: JSONObj});
-            }
-        }
-    );
+    });
 
 router.route('/postjwt')
     .post(authJwtController.isAuthenticated, function (req, res) {

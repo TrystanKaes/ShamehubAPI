@@ -11,6 +11,7 @@ mongoose.set('useCreateIndex', true);
 
 // user schema
 //TODO add an array of commits that the user has chosen to show for his/her profile
+// questions, should it be an array of commits, or a JSON object for more details about the commits
 var UserSchema = new Schema({
     name: String,
     username: { type: String, required: true, index: { unique: true }},
@@ -20,7 +21,8 @@ var UserSchema = new Schema({
     github_link: {type: String, required: false},
     bio: {type: String, required: false},
     new_repo_info: {type: JSON, required: false},
-    repo_info: {type: JSON, required: false}
+    repo_info: {type: JSON, required: false},
+    fe_repo_info: {type: JSON, required: false}
 });
 
 // hash the password before the user is saved

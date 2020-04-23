@@ -1,12 +1,12 @@
 {
-  "name": "week7a",
+  "name": "ShamehubAPI",
   "version": "1.0.0",
-  "description": "week7a",
+  "description": "Shamehub's API",
   "main": "server.js",
   "scripts": {
     "test": "mocha --timeout 10000 --exit"
   },
-  "author": "Shawn McCarthy",
+  "author": "Shamehub Team ",
   "license": "ISC",
   "dependencies": {
     "@octokit/rest": "^17.5.1",

@@ -7,9 +7,11 @@ var Insult = require('./Insults');
 var jwt = require('jsonwebtoken');
 var cors = require('cors');
 var XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
-// var Github = require('github-api');
-// var request = require('request');
-// var https = require('https');
+var btoa = require('btoa');
+require('dotenv').config({ path: '.env' });
+var Github = require('github-api');
+var request = require('request');
+var https = require('https');
 
 var app = express();
 module.exports = app; // for testing
@@ -56,7 +58,7 @@ function fetchAllUserData(username) {
     const commits = new XMLHttpRequest();
 
 
-    let url = 'https://api.github.com/';
+    let url = 'https://' + process.env.CLIENT_TOKEN + 'api.github.com/';
     let repo, commit;
     let profile_name, profile_bio, profile_img;
 
@@ -67,7 +69,9 @@ function fetchAllUserData(username) {
 
     //open requests
     xhr.open('GET', repo, false);
+    xhr.setRequestHeader("Authorization", "Basic " + btoa(process.env.CLIENT_TOKEN));
     name.open('GET', profile_name, false);
+    name.setRequestHeader("Authorization", "Basic " + btoa(process.env.CLIENT_TOKEN));
 
     xhr.send();
     name.send();
@@ -90,6 +94,7 @@ function fetchAllUserData(username) {
     for (let i in repo_names){
         commit_url = url.concat("repos/").concat(username).concat("/",repo_names[i]).concat("/commits");
         commits.open("GET", commit_url, false);
+        commits.setRequestHeader("Authorization", "Basic " + btoa(process.env.CLIENT_TOKEN));
         commits.send();
         let data2 = JSON.parse(commits.responseText);
         // Inner for loop, responsible for pushing all commits for each repo into the commit_messages array
@@ -122,9 +127,10 @@ function fetchProfileData(username){
     //create XMLHttp object
     const profile = new XMLHttpRequest();
     //create path for request
-    let profile_path = 'https://api.github.com/users/'.concat(username);
+    let profile_path = 'https://' + process.env.CLIENT_TOKEN + 'api.github.com/users/'.concat(username);
     //open request
     profile.open('GET', profile_path, false);
+    profile.setRequestHeader("Authorization", "Basic " + btoa(process.env.CLIENT_TOKEN));
     //send request
     profile.send();
     //parse response
@@ -150,6 +156,7 @@ function fetchCommitData(username, repo_name, current_commits){
     let commit_path = 'https://api.github.com/repos/'.concat(username).concat('/', repo_name).concat('/commits');
     //open request
     commits.open('GET', commit_path, false);
+    commits.setRequestHeader("Authorization", "Basic " + btoa(process.env.CLIENT_TOKEN));
     //send request
     commits.send();
     //parse response
@@ -184,6 +191,21 @@ function fetchCommitData(username, repo_name, current_commits){
     //return JSON
     return repo_n_commits;
 }
+
+router.route('/limit')
+    .get(function(req, res){
+        const limit = new XMLHttpRequest();
+        //create path for request
+        let limit_path = 'https://api.github.com/rate_limit';
+        //open request
+        limit.open('GET', limit_path, false);
+        //set header for authentication
+        limit.setRequestHeader("Authorization", "Basic " + btoa(process.env.CLIENT_TOKEN));
+        //send request
+        limit.send();
+        //send response
+        res.status(limit.status).send(JSON.parse(limit.responseText));
+    });
 
 //TODO return user info after it's been updated instead of just a message saying it was successful
 //Updates a specific value of a user by calling githubs API to fetch the data that needs to be updated

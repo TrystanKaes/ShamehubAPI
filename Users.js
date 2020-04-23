@@ -1,7 +1,10 @@
 var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 var bcrypt = require('bcrypt-nodejs');
-require('dotenv').config({ path: '.env' });
+
+//Add this back in for local developement
+// require('dotenv').config({ path: '.env' });
+
 
 mongoose.Promise = global.Promise;
 

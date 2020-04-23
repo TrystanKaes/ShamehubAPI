@@ -23,6 +23,7 @@
     "xmlhttprequest": "^1.8.0"
   },
   "devDependencies": {
+    "btoa": "^1.2.1",
     "chai": "^4.2.0",
     "chai-http": "^4.3.0",
     "dotenv": "^6.2.0",

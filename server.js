@@ -41,6 +41,7 @@ function objToStrMap(obj) {
     }
     return strMap;
 }
+//TODO optimize and make code look pretty
 //retrieves all information about a user, this is like initializing all the data of a user
 function fetchAllUserData(username) {
     let dict = new Map();
@@ -49,16 +50,19 @@ function fetchAllUserData(username) {
         repo_name: '',
         commit_msg: []
     };
+    let fe_repo_info = {
+        repo_names: [],
+        posts: []
+    };
     let repo_names = [];
     let commit_messages = [];
-    let commit_dates = [];
 
     const xhr = new XMLHttpRequest();
     const name = new XMLHttpRequest();
     const commits = new XMLHttpRequest();
 
 
-    let url = 'https://' + process.env.CLIENT_TOKEN + 'api.github.com/';
+    let url = 'https://api.github.com/';
     let repo, commit;
     let profile_name, profile_bio, profile_img;
 
@@ -81,6 +85,7 @@ function fetchAllUserData(username) {
 
     for (let i in data) {
         repo_names.push(data[i].name);
+        fe_repo_info['repo_names'].push(data[i].name);
     }
 
     //retrieve name, bio, and image url
@@ -88,8 +93,13 @@ function fetchAllUserData(username) {
     profile_bio = data1['bio'];
     profile_img = data1['avatar_url'];
 
-    let commit_url = "";
-
+    //variable for the front end info
+    let commit_info = {
+        commit_msg: '',
+        commit_date: '',
+        repo_name: '',
+        author_name: ''
+    }
     //for loop to retrieve user repo and commits
     for (let i in repo_names){
         commit_url = url.concat("repos/").concat(username).concat("/",repo_names[i]).concat("/commits");
@@ -104,17 +114,24 @@ function fetchAllUserData(username) {
         repo_n_commits['repo_name'] = repo_names[i];
         for (let x in data2){
             commit_messages.push(data2[x].commit.message);
+            commit_info['commit_msg'] = data2[x].commit.message;
+            commit_info['commit_date'] = data2[x].commit.author.date;
+            commit_info['repo_name'] = repo_names[i];
+            commit_info['author_name'] = data2[x].commit.author.name;
         }
         repo_n_commits['commit_msg'] = commit_messages;
         var jsonCopy = Object.assign({}, repo_n_commits);   //need to deep copy so that next changes don't affect previous JSON objects (immutable vs mutable change)
+        var jsonCopy2 = Object.assign({}, commit_info);
         commit_messages = [];   //emptying array
         repo_arr.push(jsonCopy);
+        fe_repo_info['posts'].push(jsonCopy2);
     }
 
     dict.set("name_key", profile_name);
     dict.set("bio_key", profile_bio);
     dict.set("img_key", profile_img);
     dict.set("repo_info", repo_arr);
+    dict.set("fe_repo_info", fe_repo_info);
 
     JSONObj = new Object();
     JSONObj = strMapToObj(dict);
@@ -127,7 +144,7 @@ function fetchProfileData(username){
     //create XMLHttp object
     const profile = new XMLHttpRequest();
     //create path for request
-    let profile_path = 'https://' + process.env.CLIENT_TOKEN + 'api.github.com/users/'.concat(username);
+    let profile_path = 'https://api.github.com/users/'.concat(username);
     //open request
     profile.open('GET', profile_path, false);
     profile.setRequestHeader("Authorization", "Basic " + btoa(process.env.CLIENT_TOKEN));
@@ -404,6 +421,7 @@ router.post('/signup', function(req, res) {
         user.bio = jsonInfo['bio_key'];
         user.new_repo_info = null;
         user.repo_info = jsonInfo['repo_info'];
+        user.fe_repo_info = jsonInfo['fe_repo_info'];
         // save the user
         user.save(function(err) {
             if (err) {

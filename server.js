@@ -9,7 +9,7 @@ var cors = require('cors');
 var XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
 var btoa = require('btoa');
 var Github = require('github-api');
-var request = require('request');
+//var request = require('request');
 var https = require('https');
 
 // Uncomment this for local developement

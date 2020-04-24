@@ -5,6 +5,8 @@ let chaiHttp = require('chai-http');
 let server = require('../server');
 var User = require('../Users');
 let should = chai.should();
+//Add this back in for local developement
+// require('dotenv').config({path:envPath})
 
 chai.use(chaiHttp);
 

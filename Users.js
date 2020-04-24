@@ -22,9 +22,6 @@ var UserSchema = new Schema({
     bio: {type: String, required: false},
     new_commits: {type: JSON, required: false},
     repo_info: {type: JSON, required: false}
-    // new_repo_info: {type: JSON, required: false},
-    // repo_info: {type: JSON, required: false},   //this is used to detect if any new info has been retrieved
-    // fe_repo_info: {type: JSON, required: false}
 });
 
 // hash the password before the user is saved

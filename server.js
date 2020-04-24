@@ -9,9 +9,9 @@ var cors = require('cors');
 var XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
 var btoa = require('btoa');
 require('dotenv').config({ path: '.env' });
-var Github = require('github-api');
-var request = require('request');
-var https = require('https');
+//var Github = require('github-api');
+//var request = require('request');
+//var https = require('https');
 
 var app = express();
 module.exports = app; // for testing

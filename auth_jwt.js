@@ -3,9 +3,6 @@ var passport = require('passport');
 var JwtStrategy = require('passport-jwt').Strategy;
 var ExtractJwt = require('passport-jwt').ExtractJwt;
 var User = require('./Users');
-//Add this back in for local developement
-// require('dotenv').config({ path: '.env' });
-
 
 var opts = {};
 opts.jwtFromRequest = ExtractJwt.fromAuthHeaderWithScheme("jwt");

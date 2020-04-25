@@ -1,7 +1,9 @@
 var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 var bcrypt = require('bcrypt-nodejs');
-
+// Make Mongoose use `findOneAndUpdate()`. Note that this option is `true`
+// by default, you need to set it to false. This is because of a Deprecation warning
+mongoose.set('useFindAndModify', false);
 mongoose.Promise = global.Promise;
 
 //put in environment file (or variable on heroku)
@@ -20,7 +22,8 @@ var UserSchema = new Schema({
     github_link: {type: String, required: false},
     bio: {type: String, required: false},
     new_commits: {type: JSON, required: false},
-    repo_info: {type: JSON, required: false}
+    repo_info: {type: JSON, required: false},
+    user_feed: {type: JSON, required: false}
 });
 
 // hash the password before the user is saved

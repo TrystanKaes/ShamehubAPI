@@ -99,8 +99,6 @@ function fetchAllUserData(username) {
         let commit_data = JSON.parse(commits.responseText);
         // Inner for loop, responsible for pushing all commits for each repo into the commit_messages array
 
-        //Things to improve here:
-        //-Get rid of commit_messages and push elements directly into JSON array
         for (let x in commit_data){
             commit_info['commit_msg'] = commit_data[x].commit.message;
             commit_info['commit_date'] = commit_data[x].commit.author.date;
@@ -229,6 +227,89 @@ function fetchRepoData(username){
     //return array of all repo names
     return repo_names;
 }
+//retrieves all repos and commit data from the user but not the profile, updates new_commits
+function fetchAllRepoCommitData(username, current_commits){
+    //create requests that we will be sending eventually
+    const repo = new XMLHttpRequest();
+    const commits = new XMLHttpRequest();
+
+    let url = 'https://api.github.com/';
+
+    // GET /repos/:owner/:repo/git/commits/:commit_sha
+    // https://api.github.com/repos/xFrenchy/Battleship/commits
+    let repo_path = url.concat("users/").concat(username).concat("/repos");
+
+    //open requests
+    repo.open('GET', repo_path, false);
+    //set authentication for open requests
+    repo.setRequestHeader("Authorization", "Basic " + btoa(process.env.CLIENT_TOKEN));
+    //send requests
+    repo.send();
+
+    const repo_data = JSON.parse(repo.responseText);
+
+    //JSON to store repos and commits
+    let repo_info = {
+        repo_names: [],
+        posts: []
+    };
+    let commit_info = {
+        commit_msg: '',
+        commit_date: '',
+        repo_name: '',
+        author_name: '',
+        login_name: ''
+    };
+    let new_commits = [];
+
+    let repo_names = [];
+    for (let i in repo_data) {
+        repo_names.push(repo_data[i].name);
+        repo_info['repo_names'].push(repo_data[i].name);
+    }
+
+    //for loop to retrieve commits from all repos of the user
+    for (let i in repo_names){
+        let commit_url = url.concat("repos/").concat(username).concat("/",repo_names[i]).concat("/commits");
+        commits.open("GET", commit_url, false);
+        commits.setRequestHeader("Authorization", "Basic " + btoa(process.env.CLIENT_TOKEN));
+        commits.send();
+        let commit_data = JSON.parse(commits.responseText);
+        // Inner for loop, responsible for pushing all commits for each repo into the commit_messages array
+
+        for (let x in commit_data){
+            commit_info['commit_msg'] = commit_data[x].commit.message;
+            commit_info['commit_date'] = commit_data[x].commit.author.date;
+            commit_info['repo_name'] = repo_names[i];
+            commit_info['author_name'] = commit_data[x].commit.author.name;
+            commit_info['login_name'] = commit_data[x].author.login;
+            let jsonCopy2 = Object.assign({}, commit_info); //need to deep copy so that next changes don't affect previous JSON objects (immutable vs mutable change)
+            repo_info['posts'].push(jsonCopy2);
+        }
+    }
+    //Figure out if there has been any new commits by checking if this commit exists
+    for(let i = 0; i < Object.keys(repo_info['posts']).length; ++i){
+        //That's a chunky if statement woo
+        // https://stackoverflow.com/questions/8217419/how-to-determine-if-javascript-array-contains-an-object-with-an-attribute-that-e/8217584#8217584
+        if(!current_commits.some(e => e.commit_msg === repo_info['posts'][i].commit_msg && e.commit_date === repo_info['posts'][i].commit_date)){
+            new_commits.push(repo_info['posts'][i]);
+        }
+    }
+    //if there was no new commits detected
+    if(new_commits.length === 0){
+        new_commits = null;
+    }
+
+    //map it all for the purpose of creating a new JSON object
+    let dict = new Map();
+    dict.set("new_commits", new_commits);
+    dict.set("repo_info", repo_info);
+    //create new json object with dict keys
+    let JSONObj = new Object();
+    JSONObj = strMapToObj(dict);
+    //return our JSON
+    return JSONObj;
+}
 
 router.route('/limit')
     .get(function(req, res){
@@ -244,8 +325,51 @@ router.route('/limit')
         //send response
         res.status(limit.status).send(JSON.parse(limit.responseText));
     });
+//shamehub username, not github username
+router.route('/userfeed/:username/:start?')
+    .get(function(req,res){
+        if(req.params.start){
+            //we give 20 elements starting from n*20
+            let index = req.params.start * 20;
+            User.findOne({username: req.params.username}, 'user_feed', function(err, feed){
+                if(err){
+                    res.status(400).send(err);
+                }
+                if(feed.user_feed.length <= index){
+                    res.status(400).send({success: false, msg: 'Start is out of bounds! Please don\'t try to break me :('});
+                }
+                else {
+                    let return_array = feed.user_feed.slice(index, index + 20);   //grab 20 elements from a specific start
+                    let returnJSON = {
+                        success: true,
+                        msg: 'Successfully retrieved a portion of userfeed',
+                        user_feed: return_array
+                    };
+                    res.status(200).send(returnJSON);
+                }
+            })
+        }
+        else{
+            res.status(400).send({success: true, msg: 'Start was not specified, I need some number n to multiply with 20'})
+        }
+    })
+    .post(function (req, res) {
+            if(req.body.commits){
+                for(let i = 0; i < req.body.commits.length; ++i) {
+                    User.findOneAndUpdate({username: req.params.username}, {$addToSet: {user_feed: req.body.commits[i]}}, function(err, doc) {
+                        if(err){res.send(err)}
+                    });
+                }
+                res.status(200).send({success: true, msg: 'userfeed updated'});
+            }
+            else{
+                //there is no commits to push, mistake has been made
+                res.status(400).send({success: false, msg: 'I didn\'t receive any commits to add to the user feed'})
+            }
+        }
+    );
 
-//TODO return user info after it's been updated instead of just a message saying it was successful
+//TODO Refactor, lots of repetitive code, specifically updating fields in user schema for new_commits should be refactored
 //Updates a specific value of a user by calling githubs API to fetch the data that needs to be updated
 router.route('/update/:github_user/:variable/:repo_name?')
     .get(function(req, res) {
@@ -268,10 +392,18 @@ router.route('/update/:github_user/:variable/:repo_name?')
                         User.updateOne({github_username: req.params.github_user}, {
                             $set: {
                                 name: jsonResult['name_key'],
-                                profile_img: jsonResult['img_key'], bio: jsonResult['bio_key']
+                                profile_img: jsonResult['img_key'],
+                                bio: jsonResult['bio_key']
                             }
                         }).exec(function(err, result){
-                            res.status(200).send({success: true, msg: 'User profile has been updated!'});
+                            let response = {
+                                success: true,
+                                msg: 'User profile has been updated!',
+                                name: jsonResult['name_key'],
+                                profile_img: jsonResult['img_key'],
+                                bio: jsonResult['bio_key']
+                            };
+                            res.status(200).send(response);
                         });
                     } catch (e) {
                         print(e);
@@ -291,8 +423,6 @@ router.route('/update/:github_user/:variable/:repo_name?')
                 }
                 //if user exists, aka a match was found
                 if (user) {
-                    //TODO give a richer messages when sending back to client
-
                     let repo_array = fetchRepoData(req.params.github_user);
                     let repo_info = {
                         repo_names: repo_array,
@@ -305,7 +435,12 @@ router.route('/update/:github_user/:variable/:repo_name?')
                                 repo_info: repo_info
                             }
                         }).exec(function(err, result){
-                            res.status(200).send({success: true, msg: 'User repos has been updated!'});
+                            let response = {
+                                success: true,
+                                msg: 'User repos has been updated!',
+                                repo_names: repo_array
+                            };
+                            res.status(200).send(response);
                         });
                     } catch (e) {
                         print(e);
@@ -324,7 +459,6 @@ router.route('/update/:github_user/:variable/:repo_name?')
                     msg: "Please specify the repo name. Example: '/update/TrystanKaes/commit/ShamehubAPI'"
                 })
             }
-
             User.findOne({github_username: req.params.github_user}).exec(function (err, user) {
                 if (err) {
                     res.send(err);
@@ -360,7 +494,12 @@ router.route('/update/:github_user/:variable/:repo_name?')
                                     //new_repo_info: {$ifNull: [jsonResult['new_commits']['commit_msg'] , null] }
                                 }
                             }).exec(function(err, result){
-                                res.status(200).send({success: true, msg: 'User commits for ' +req.params.repo_name + ' has been updated!'});
+                                let response = {
+                                    success: true,
+                                    msg: 'User commits for ' +req.params.repo_name + ' has been updated!',
+                                    new_commits: jsonResult['new_commits']
+                                };
+                                res.status(200).send(response);
                             });
                         } catch (e) {
                             print(e);
@@ -374,7 +513,12 @@ router.route('/update/:github_user/:variable/:repo_name?')
                                     repo_info: repo_info
                                 }
                             }).exec(function(err, result){
-                                res.status(200).send({success: 'not really', msg: 'Nothing to update for ' +req.params.repo_name + '!'});
+                                let response = {
+                                    success: true,
+                                    msg: 'User commits for ' +req.params.repo_name + ' has been updated!',
+                                    new_commits: null
+                                };
+                                res.status(200).send(response);
                             });
                         } catch (e) {
                             print(e);
@@ -387,13 +531,81 @@ router.route('/update/:github_user/:variable/:repo_name?')
             });
         }
         //API call = n + 1
-        else if(req.params.variable === "repo_n_commit" && req.params.github_user){
+        else if(req.params.variable === "repoNcommit" && req.params.github_user){
             //fetch all repos and all commits from all repos (commits = n, repos = 1)
+            User.findOne({github_username: req.params.github_user}).exec(function (err, user) {
+                if (err) {
+                    res.send(err);
+                }
+                //if user exists, aka a match was found
+                if (user) {
+                    //call API to retrieve commits of specific repo (API call = 1)
+
+                    //get commit array to pass into function
+                    let commit_array = user._doc.repo_info.posts.slice();   //deep copy for immutable change later on
+                    let jsonResult = fetchAllRepoCommitData(req.params.github_user, commit_array);
+                    //update our commit history by adding any new commits into posts
+                    //!----Dangerous code here, without this if statement, the for loop would break on trying to find the length of null
+                    if(jsonResult['new_commits'] != null){
+                        for(let i = 0; i < jsonResult['new_commits'].length; ++i){
+                            commit_array.push(jsonResult['new_commits'][i]);
+                        }
+                    }
+                    //try to update the user repo info
+                    //TODO get the $ifNull working
+                    // (https://docs.mongodb.com/manual/reference/operator/aggregation/ifNull/)
+                    // (https://docs.mongodb.com/manual/reference/method/db.collection.updateOne/)
+                    if(jsonResult['new_commits'] != null){
+                        try {
+                            User.updateOne({github_username: req.params.github_user}, {
+                                $set: {
+                                    new_commits: jsonResult['new_commits'],
+                                    repo_info: jsonResult['repo_info'],
+                                    //new_repo_info: {$ifNull: [jsonResult['new_commits']['commit_msg'] , null] }
+                                }
+                            }).exec(function(err, result){
+                                let response = {
+                                    success: true,
+                                    msg: 'User commits has been updated!',
+                                    new_commits: jsonResult['new_commits'],
+                                    repo_info: jsonResult['repo_info']
+                                };
+                                res.status(200).send(response);
+                            });
+                        } catch (e) {
+                            print(e);
+                        }
+                    }
+                    else{
+                        try {
+                            User.updateOne({github_username: req.params.github_user}, {
+                                $set: {
+                                    new_commits: null,
+                                    repo_info: jsonResult['repo_info']
+                                }
+                            }).exec(function(err, result){
+                                let response = {
+                                    success: 'Maybe',
+                                    msg: 'No new commits has been found, maybe new repos, who knows, not me',
+                                    new_commits: null,
+                                    repo_info: jsonResult['repo_info']
+                                };
+                                res.status(200).send(response);
+                            });
+                        } catch (e) {
+                            print(e);
+                        }
+                    }
+
+                } else {
+                    res.status(400).send({success: false, msg: 'No match for this user'});
+                }
+            });
         }
         else {
             res.status(400).send({
                 success: false, msg: "Could not understand what to update and/or for who.\n " +
-                    "Please specify if it's 'profile', 'repo', or 'commit'. Ex: '/update/xFrenchy/profile'"
+                    "Please specify if it's 'profile', 'repo', 'commit', or 'repoNcommit'. Ex: '/update/xFrenchy/profile'"
             })
         }
     });
@@ -412,7 +624,7 @@ router.route('/postjwt')
 
 router.route('/users/:username')
     .get(authJwtController.isAuthenticated, function (req, res) {
-        var username = req.params.username
+        var username = req.params.username;
         User.findOne({ username: username }).exec(function(err, user) {
             if (err) res.send(err);
                 res.send(user._doc);

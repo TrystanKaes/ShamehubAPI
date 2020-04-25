@@ -608,6 +608,37 @@ router.route('/update/:github_user/:variable/:repo_name?')
                     "Please specify if it's 'profile', 'repo', 'commit', or 'repoNcommit'. Ex: '/update/xFrenchy/profile'"
             })
         }
+    })
+    .post(authJwtController.isAuthenticated, function(req, res){
+        if(req.params.variable === "profile"){
+            User.findOne({ github_username: req.params.github_user }, 'name profile_img bio').exec(function(err, user) {
+                let name = req.body.name ? req.body.name : user.name;
+                let img = req.body.profile_img ? req.body.profile_img : user.profile_img;
+                let bio = req.body.bio ? req.body.bio : user.bio;
+
+                //Update user in database
+                try {
+                    User.updateOne({github_username: req.params.github_user}, {
+                        $set: {
+                            name: name,
+                            profile_img: img,
+                            bio: bio
+                        }
+                    }).exec(function(err, result){
+                        if(err){
+                            res.status(400).send(err);
+                        }
+                        res.status(200).send({success: true, msg: 'User profile updated!'});
+                    });
+                } catch (e) {
+                    res.status(400).send(e);
+                }
+            });
+        }
+        else{
+            res.status(400).send({success: false, msg: 'Do not recognize the path for this POST, make sure to specific that it\'s for a profile' +
+                    'Example, /update/TrystanKaes/profile' });
+        }
     });
 
 router.route('/postjwt')

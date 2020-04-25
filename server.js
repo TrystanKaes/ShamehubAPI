@@ -628,7 +628,14 @@ router.route('/update/:github_user/:variable/:repo_name?')
                         if(err){
                             res.status(400).send(err);
                         }
-                        res.status(200).send({success: true, msg: 'User profile updated!'});
+                        let response  = {
+                            success: true,
+                            msg: 'User profile updated!',
+                            name: name,
+                            profile_img: img,
+                            bio: bio
+                        };
+                        res.status(200).send(response);
                     });
                 } catch (e) {
                     res.status(400).send(e);

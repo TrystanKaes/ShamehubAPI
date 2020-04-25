@@ -12,14 +12,17 @@
     "@octokit/rest": "^17.5.1",
     "bcrypt-nodejs": "0.0.3",
     "body-parser": "^1.19.0",
+    "btoa": "^1.2.1",
     "cors": "^2.8.5",
     "express": "^4.17.1",
     "github-api": "^3.3.0",
+    "https": "^1.0.0",
     "jsonwebtoken": "^8.5.1",
     "mongoose": "^5.9.4",
     "passport": "^0.4.1",
     "passport-http": "^0.3.0",
     "passport-jwt": "^3.0.1",
+    "requests": "^0.3.0",
     "xmlhttprequest": "^1.8.0"
   },
   "devDependencies": {

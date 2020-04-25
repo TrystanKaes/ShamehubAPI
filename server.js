@@ -327,7 +327,7 @@ router.route('/limit')
     });
 //shamehub username, not github username
 router.route('/userfeed/:username/:start?')
-    .get(function(req,res){
+    .get(authJwtController.isAuthenticated, function(req,res){
         if(req.params.start){
             //we give 20 elements starting from n*20
             let index = req.params.start * 20;
@@ -353,7 +353,7 @@ router.route('/userfeed/:username/:start?')
             res.status(400).send({success: true, msg: 'Start was not specified, I need some number n to multiply with 20'})
         }
     })
-    .post(function (req, res) {
+    .post(authJwtController.isAuthenticated, function (req, res) {
             if(req.body.commits){
                 for(let i = 0; i < req.body.commits.length; ++i) {
                     User.findOneAndUpdate({username: req.params.username}, {$addToSet: {user_feed: req.body.commits[i]}}, function(err, doc) {
@@ -372,7 +372,7 @@ router.route('/userfeed/:username/:start?')
 //TODO Refactor, lots of repetitive code, specifically updating fields in user schema for new_commits should be refactored
 //Updates a specific value of a user by calling githubs API to fetch the data that needs to be updated
 router.route('/update/:github_user/:variable/:repo_name?')
-    .get(function(req, res) {
+    .get(authJwtController.isAuthenticated, function(req, res) {
         //First thing first, we want to map out which path we have to take,
         // are we updating info about the name/bio/image(profile), or are we updating repo and commits?
 

@@ -702,7 +702,8 @@ router.route('/insults')
         else {
             Insult.find().select('insult category').exec(function (err, insults) {
                 if (err) res.send(err);
-                res.status(200).send({msg: "GET insults", insults: insults});
+                let insult = insults[Math.floor(Math.random()*insults.length)];
+                res.status(200).send({msg: "GET insults", insults: insult});
             })
         }
     })

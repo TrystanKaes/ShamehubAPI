@@ -98,13 +98,24 @@ function fetchAllUserData(username) {
         commits.send();
         let commit_data = JSON.parse(commits.responseText);
         // Inner for loop, responsible for pushing all commits for each repo into the commit_messages array
-
-        for (let x in commit_data){
-            commit_info['commit_msg'] = commit_data[x].commit.message;
-            commit_info['commit_date'] = commit_data[x].commit.author.date;
+        if(commit_data.message === undefined) {
+            for (let x in commit_data) {
+                commit_info['commit_msg'] = commit_data[x].commit.message;
+                commit_info['commit_date'] = commit_data[x].commit.author.date;
+                commit_info['repo_name'] = repo_names[i];
+                commit_info['author_name'] = commit_data[x].commit.author.name;
+                commit_info['login_name'] = commit_data[x].author ? commit_data[x].author.login : null; //some accounts might have author set to null
+                let jsonCopy2 = Object.assign({}, commit_info); //need to deep copy so that next changes don't affect previous JSON objects (immutable vs mutable change)
+                repo_info['posts'].push(jsonCopy2);
+            }
+        }
+        else{
+            //This repo is empty
+            commit_info['commit_msg'] = null;
+            commit_info['commit_date'] = null;
             commit_info['repo_name'] = repo_names[i];
-            commit_info['author_name'] = commit_data[x].commit.author.name;
-            commit_info['login_name'] = commit_data[x].author.login;
+            commit_info['author_name'] = null;
+            commit_info['login_name'] = null; //some accounts might have author set to null
             let jsonCopy2 = Object.assign({}, commit_info); //need to deep copy so that next changes don't affect previous JSON objects (immutable vs mutable change)
             repo_info['posts'].push(jsonCopy2);
         }
@@ -335,7 +346,10 @@ router.route('/userfeed/:username/:start?')
                 if(err){
                     res.status(400).send(err);
                 }
-                if(feed.user_feed.length <= index){
+                if(feed.user_feed === undefined){
+                    res.status(400).send({success: false, msg: 'userfeed has not been created yet! Try doing a POST to create a userfeed before you try a GET'});
+                }
+                else if(feed.user_feed.length <= index){
                     res.status(400).send({success: false, msg: 'Start is out of bounds! Please don\'t try to break me :('});
                 }
                 else {
@@ -451,7 +465,7 @@ router.route('/update/:github_user/:variable/:repo_name?')
             });
         }
         //API call = 1
-        else if (req.params.variable === "commit" && req.params.github_user) {
+        else if (req.params.variable === "specificCommit" && req.params.github_user) {
             //call API on that specific repo to fetch all existing commits
             if (!req.params.repo_name) {
                 res.status(400).send({
@@ -531,7 +545,7 @@ router.route('/update/:github_user/:variable/:repo_name?')
             });
         }
         //API call = n + 1
-        else if(req.params.variable === "repoNcommit" && req.params.github_user){
+        else if(req.params.variable === "commits" && req.params.github_user){
             //fetch all repos and all commits from all repos (commits = n, repos = 1)
             User.findOne({github_username: req.params.github_user}).exec(function (err, user) {
                 if (err) {
@@ -567,8 +581,7 @@ router.route('/update/:github_user/:variable/:repo_name?')
                                 let response = {
                                     success: true,
                                     msg: 'User commits has been updated!',
-                                    new_commits: jsonResult['new_commits'],
-                                    repo_info: jsonResult['repo_info']
+                                    new_commits: jsonResult['new_commits']
                                 };
                                 res.status(200).send(response);
                             });
@@ -587,8 +600,7 @@ router.route('/update/:github_user/:variable/:repo_name?')
                                 let response = {
                                     success: 'Maybe',
                                     msg: 'No new commits has been found, maybe new repos, who knows, not me',
-                                    new_commits: null,
-                                    repo_info: jsonResult['repo_info']
+                                    new_commits: null
                                 };
                                 res.status(200).send(response);
                             });
@@ -605,7 +617,7 @@ router.route('/update/:github_user/:variable/:repo_name?')
         else {
             res.status(400).send({
                 success: false, msg: "Could not understand what to update and/or for who.\n " +
-                    "Please specify if it's 'profile', 'repo', 'commit', or 'repoNcommit'. Ex: '/update/xFrenchy/profile'"
+                    "Please specify if it's 'profile', 'repo', 'specificCommit', or 'commits'. Ex: '/update/xFrenchy/profile'"
             })
         }
     })

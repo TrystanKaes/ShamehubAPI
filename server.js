@@ -336,6 +336,15 @@ router.route('/limit')
         //send response
         res.status(limit.status).send(JSON.parse(limit.responseText));
     });
+
+router.route('/discoveryFeed/:start')
+    .get(authJwtController.isAuthenticated, function(req, res){
+        //retrieve the new_commits field from all users, sort it based on date, starting index at n * 20, return 20 from that starting index
+        User.find({}, 'user_feed', function(err, doc){
+            console.log(doc);
+        })
+    });
+
 //shamehub username, not github username
 router.route('/userfeed/:username/:start?')
     .get(authJwtController.isAuthenticated, function(req,res){
@@ -374,7 +383,16 @@ router.route('/userfeed/:username/:start?')
                         if(err){res.send(err)}
                     });
                 }
-                res.status(200).send({success: true, msg: 'userfeed updated'});
+                //retrieve user_feed and send it back
+                User.findOne({username: req.params.username}, 'user_feed', function(err, doc){
+                    if(err){
+                        res.status(400).send({success: false, msg: 'Error sending back updated userfeed!'});
+                    }
+                    else {
+                        res.status(200).send({success: true, msg: 'userfeed updated', user_feed: doc._doc.user_feed});
+                    }
+                });
+
             }
             else{
                 //there is no commits to push, mistake has been made

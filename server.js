@@ -349,7 +349,7 @@ router.route('/userfeed/:username/:start?')
                 if(feed.user_feed === undefined){
                     res.status(400).send({success: false, msg: 'userfeed has not been created yet! Try doing a POST to create a userfeed before you try a GET'});
                 }
-                if(feed.user_feed.length <= index){
+                else if(feed.user_feed.length <= index){
                     res.status(400).send({success: false, msg: 'Start is out of bounds! Please don\'t try to break me :('});
                 }
                 else {

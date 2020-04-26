@@ -98,13 +98,24 @@ function fetchAllUserData(username) {
         commits.send();
         let commit_data = JSON.parse(commits.responseText);
         // Inner for loop, responsible for pushing all commits for each repo into the commit_messages array
-
-        for (let x in commit_data){
-            commit_info['commit_msg'] = commit_data[x].commit.message;
-            commit_info['commit_date'] = commit_data[x].commit.author.date;
+        if(commit_data.message === undefined) {
+            for (let x in commit_data) {
+                commit_info['commit_msg'] = commit_data[x].commit.message;
+                commit_info['commit_date'] = commit_data[x].commit.author.date;
+                commit_info['repo_name'] = repo_names[i];
+                commit_info['author_name'] = commit_data[x].commit.author.name;
+                commit_info['login_name'] = commit_data[x].author ? commit_data[x].author.login : null; //some accounts might have author set to null
+                let jsonCopy2 = Object.assign({}, commit_info); //need to deep copy so that next changes don't affect previous JSON objects (immutable vs mutable change)
+                repo_info['posts'].push(jsonCopy2);
+            }
+        }
+        else{
+            //This repo is empty
+            commit_info['commit_msg'] = null;
+            commit_info['commit_date'] = null;
             commit_info['repo_name'] = repo_names[i];
-            commit_info['author_name'] = commit_data[x].commit.author.name;
-            commit_info['login_name'] = commit_data[x].author.login;
+            commit_info['author_name'] = null;
+            commit_info['login_name'] = null; //some accounts might have author set to null
             let jsonCopy2 = Object.assign({}, commit_info); //need to deep copy so that next changes don't affect previous JSON objects (immutable vs mutable change)
             repo_info['posts'].push(jsonCopy2);
         }
@@ -334,6 +345,9 @@ router.route('/userfeed/:username/:start?')
             User.findOne({username: req.params.username}, 'user_feed', function(err, feed){
                 if(err){
                     res.status(400).send(err);
+                }
+                if(feed.user_feed === undefined){
+                    res.status(400).send({success: false, msg: 'userfeed has not been created yet! Try doing a POST to create a userfeed before you try a GET'});
                 }
                 if(feed.user_feed.length <= index){
                     res.status(400).send({success: false, msg: 'Start is out of bounds! Please don\'t try to break me :('});

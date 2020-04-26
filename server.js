@@ -366,11 +366,11 @@ router.route('/discoveryFeed/:start')
                return comparison;
             } );
             //return the first 20 elements
-            if(req.params.start >= discovery_field.length){
+            let index = req.params.start * 20;
+            if(index >= discovery_field.length){
                 res.status(400).send({success: false, msg: 'The index you gave me is out of bounds!The discovery field is not that big'});
             }
             else {
-                let index = req.params.start * 20;
                 let returnJson = {
                     success: true,
                     msg: 'Successfully retrieved 20 elements from the discovery field',

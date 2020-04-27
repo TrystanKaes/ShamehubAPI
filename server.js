@@ -366,7 +366,7 @@ router.route('/discoveryFeed/:start')
                return comparison;
             } );
             //return the first 20 elements
-            //let index = req.params.start * 20;
+            let index = req.params.start;   //not needed anymore if we don't manipulate index. Staying in case we change our mind
             if(req.params.start >= discovery_field.length){
                 res.status(400).send({success: false, msg: 'The index you gave me is out of bounds!The discovery field is not that big'});
             }
@@ -374,7 +374,7 @@ router.route('/discoveryFeed/:start')
                 let returnJson = {
                     success: true,
                     msg: 'Successfully retrieved 20 elements from the discovery field',
-                    discovery_field: discovery_field.slice(req.params.start, req.params.start + 20)
+                    discovery_field: discovery_field.slice(index, index + 20)
                 };
                 res.status(200).send(returnJson);
             }
@@ -385,8 +385,7 @@ router.route('/discoveryFeed/:start')
 router.route('/userfeed/:username/:start?')
     .get(authJwtController.isAuthenticated, function(req,res){
         if(req.params.start){
-            //we give 20 elements starting from n*20
-            let index = req.params.start * 20;
+            let index = req.params.start;   //this is not needed if we're not manipulating the index anymore
             User.findOne({username: req.params.username}, 'user_feed', function(err, feed){
                 if(err){
                     res.status(400).send(err);

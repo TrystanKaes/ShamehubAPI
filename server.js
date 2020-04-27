@@ -573,7 +573,7 @@ router.route('/update/:github_user/:variable/:repo_name?')
                         });
                     }
                     catch (e) {
-                        print(e);
+                        res.status(400).send(e);
                     }
                 }
                 else {

@@ -366,17 +366,17 @@ router.route('/discoveryFeed/:start')
                return comparison;
             } );
             //return the first 20 elements
-            let index = req.params.start * 20;
-            if(index >= discovery_field.length){
+            //let index = req.params.start * 20;
+            if(req.params.start >= discovery_field.length){
                 res.status(400).send({success: false, msg: 'The index you gave me is out of bounds!The discovery field is not that big'});
             }
             else {
                 let returnJson = {
                     success: true,
                     msg: 'Successfully retrieved 20 elements from the discovery field',
-                    discovery_field: discovery_field.slice(index, index + 20)
+                    discovery_field: discovery_field.slice(req.params.start, req.params.start + 20)
                 };
-                res.status(200).send({returnJson});
+                res.status(200).send(returnJson);
             }
         })
     });

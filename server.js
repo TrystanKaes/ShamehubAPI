@@ -537,62 +537,46 @@ router.route('/update/:github_user/:variable/:repo_name?')
                     //get commit array to pass into function
                     let commit_array = user._doc.repo_info.posts.slice();   //deep copy for immutable change later on
                     let jsonResult = fetchCommitData(req.params.github_user, req.params.repo_name, commit_array);
+                    let filtered_newCommits = [];
                     //update our commit history by adding any new commits into posts
                     //!----Dangerous code here, without this if statement, the for loop would break on trying to find the length of null
                     if(jsonResult['new_commits'] != null){
                         for(let i = 0; i < jsonResult['new_commits'].length; ++i){
                             commit_array.push(jsonResult['new_commits'][i]);
+                            //new_commits might have commits that aren't related to the user but related to repo, filter it out
+                            if(jsonResult['new_commits'][i].login_name === req.params.github_user){
+                                filtered_newCommits.push(jsonResult['new_commits'][i]);
+                            }
                         }
+                    }
+                    else{
+                        filtered_newCommits = null;
                     }
                     let repo_info = {
                         repo_names: user._doc.repo_info.repo_names,
                         posts: commit_array
                     };
                     //try to update the user repo info
-                    //TODO get the $ifNull working
-                    // (https://docs.mongodb.com/manual/reference/operator/aggregation/ifNull/)
-                    // (https://docs.mongodb.com/manual/reference/method/db.collection.updateOne/)
-                    if(jsonResult['new_commits'] != null){
-                        try {
-                            User.updateOne({github_username: req.params.github_user}, {
-                                $set: {
-                                    new_commits: jsonResult['new_commits'],
-                                    repo_info: repo_info,
-                                    //new_repo_info: {$ifNull: [jsonResult['new_commits']['commit_msg'] , null] }
-                                }
-                            }).exec(function(err, result){
-                                let response = {
-                                    success: true,
-                                    msg: 'User commits for ' +req.params.repo_name + ' has been updated!',
-                                    new_commits: jsonResult['new_commits']
-                                };
-                                res.status(200).send(response);
-                            });
-                        } catch (e) {
-                            print(e);
-                        }
+                    try {
+                        User.updateOne({github_username: req.params.github_user}, {
+                            $set: {
+                                new_commits: filtered_newCommits,
+                                repo_info: repo_info,
+                            }
+                        }).exec(function(err, result){
+                            let response = {
+                                success: true,
+                                msg: filtered_newCommits ? 'User commits for ' +req.params.repo_name + ' has been updated!' : 'No new commits detected for this repo',
+                                new_commits: filtered_newCommits
+                            };
+                            res.status(200).send(response);
+                        });
                     }
-                    else{
-                        try {
-                            User.updateOne({github_username: req.params.github_user}, {
-                                $set: {
-                                    new_commits: null,
-                                    repo_info: repo_info
-                                }
-                            }).exec(function(err, result){
-                                let response = {
-                                    success: true,
-                                    msg: 'User commits for ' +req.params.repo_name + ' has been updated!',
-                                    new_commits: null
-                                };
-                                res.status(200).send(response);
-                            });
-                        } catch (e) {
-                            print(e);
-                        }
+                    catch (e) {
+                        print(e);
                     }
-
-                } else {
+                }
+                else {
                     res.status(400).send({success: false, msg: 'No match for this user'});
                 }
             });
@@ -611,58 +595,42 @@ router.route('/update/:github_user/:variable/:repo_name?')
                     //get commit array to pass into function
                     let commit_array = user._doc.repo_info.posts.slice();   //deep copy for immutable change later on
                     let jsonResult = fetchAllRepoCommitData(req.params.github_user, commit_array);
+                    let filtered_newCommits = [];
                     //update our commit history by adding any new commits into posts
                     //!----Dangerous code here, without this if statement, the for loop would break on trying to find the length of null
                     if(jsonResult['new_commits'] != null){
                         for(let i = 0; i < jsonResult['new_commits'].length; ++i){
                             commit_array.push(jsonResult['new_commits'][i]);
-                        }
-                    }
-                    //try to update the user repo info
-                    //TODO get the $ifNull working
-                    // (https://docs.mongodb.com/manual/reference/operator/aggregation/ifNull/)
-                    // (https://docs.mongodb.com/manual/reference/method/db.collection.updateOne/)
-                    if(jsonResult['new_commits'] != null){
-                        try {
-                            User.updateOne({github_username: req.params.github_user}, {
-                                $set: {
-                                    new_commits: jsonResult['new_commits'],
-                                    repo_info: jsonResult['repo_info'],
-                                    //new_repo_info: {$ifNull: [jsonResult['new_commits']['commit_msg'] , null] }
-                                }
-                            }).exec(function(err, result){
-                                let response = {
-                                    success: true,
-                                    msg: 'User commits has been updated!',
-                                    new_commits: jsonResult['new_commits']
-                                };
-                                res.status(200).send(response);
-                            });
-                        } catch (e) {
-                            print(e);
+                            //new_commits might have commits that aren't related to the user but related to repo, filter it out
+                            if(jsonResult['new_commits'][i].login_name === req.params.github_user){
+                                filtered_newCommits.push(jsonResult['new_commits'][i]);
+                            }
                         }
                     }
                     else{
-                        try {
-                            User.updateOne({github_username: req.params.github_user}, {
-                                $set: {
-                                    new_commits: null,
-                                    repo_info: jsonResult['repo_info']
-                                }
-                            }).exec(function(err, result){
-                                let response = {
-                                    success: 'Maybe',
-                                    msg: 'No new commits has been found, maybe new repos, who knows, not me',
-                                    new_commits: null
-                                };
-                                res.status(200).send(response);
-                            });
-                        } catch (e) {
-                            print(e);
-                        }
+                        filtered_newCommits = null;
                     }
-
-                } else {
+                    //try to update the user repo info
+                    try {
+                        User.updateOne({github_username: req.params.github_user}, {
+                            $set: {
+                                new_commits: filtered_newCommits,
+                                repo_info: jsonResult['repo_info'],
+                            }
+                        }).exec(function(err, result){
+                            let response = {
+                                success: true,
+                                msg: filtered_newCommits ? 'User commits has been updated!' : 'No new commits were detected!',
+                                new_commits: filtered_newCommits
+                            };
+                            res.status(200).send(response);
+                        });
+                    }
+                    catch (e) {
+                        print(e);
+                    }
+                }
+                else {
                     res.status(400).send({success: false, msg: 'No match for this user'});
                 }
             });

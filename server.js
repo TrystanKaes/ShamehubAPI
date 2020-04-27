@@ -397,7 +397,7 @@ router.route('/userfeed/:username/:start?')
                     res.status(400).send({success: false, msg: 'Start is out of bounds! Please don\'t try to break me :('});
                 }
                 else {
-                    let return_array = feed.user_feed.slice(index, index + 2);   //grab 20 elements from a specific start
+                    let return_array = feed.user_feed.slice(index, index + 20);   //grab 20 elements from a specific start
                     let returnJSON = {
                         success: true,
                         msg: 'Successfully retrieved a portion of userfeed',

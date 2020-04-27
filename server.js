@@ -336,12 +336,56 @@ router.route('/limit')
         //send response
         res.status(limit.status).send(JSON.parse(limit.responseText));
     });
+
+router.route('/discoveryFeed/:start')
+    .get(authJwtController.isAuthenticated, function(req, res){
+        //retrieve the new_commits field from all users, sort it based on date, starting index at n * 20, return 20 from that starting index
+        User.find({user_feed: {$exists: true}}, 'user_feed', function(err, doc){
+            if(err) res.status(400).send(err);
+            //let's combine all of these user feeds together into one big feed
+            let discovery_field = [];
+            for(let i = 0; i < doc.length; ++i){
+                let size = doc[i]._doc.user_feed.length > 20 ? 20 : doc[i]._doc.user_feed.length;
+                for(let j = 0; j < size; ++j){
+                    discovery_field.push(doc[i]._doc.user_feed[j]);
+                }
+            }
+            //sort discovery field based on the date
+            discovery_field.sort((a,b) => {
+               let comparison = 0;
+               if(a.commit_date < b.commit_date){
+                   comparison = 1;
+               }
+               else if(a.commit_date > b.commit_date){
+                    comparison = -1;
+               }
+               else{
+                    //well the dates are equal
+                   comparison = 0;
+               }
+               return comparison;
+            } );
+            //return the first 20 elements
+            let index = req.params.start;   //not needed anymore if we don't manipulate index. Staying in case we change our mind
+            if(req.params.start >= discovery_field.length){
+                res.status(400).send({success: false, msg: 'The index you gave me is out of bounds!The discovery field is not that big'});
+            }
+            else {
+                let returnJson = {
+                    success: true,
+                    msg: 'Successfully retrieved 20 elements from the discovery field',
+                    discovery_field: discovery_field.slice(index, index + 20)
+                };
+                res.status(200).send(returnJson);
+            }
+        })
+    });
+
 //shamehub username, not github username
 router.route('/userfeed/:username/:start?')
     .get(authJwtController.isAuthenticated, function(req,res){
         if(req.params.start){
-            //we give 20 elements starting from n*20
-            let index = req.params.start * 20;
+            let index = req.params.start;   //this is not needed if we're not manipulating the index anymore
             User.findOne({username: req.params.username}, 'user_feed', function(err, feed){
                 if(err){
                     res.status(400).send(err);
@@ -374,7 +418,16 @@ router.route('/userfeed/:username/:start?')
                         if(err){res.send(err)}
                     });
                 }
-                res.status(200).send({success: true, msg: 'userfeed updated'});
+                //retrieve user_feed and send it back
+                User.findOne({username: req.params.username}, 'user_feed', function(err, doc){
+                    if(err){
+                        res.status(400).send({success: false, msg: 'Error sending back updated userfeed!'});
+                    }
+                    else {
+                        res.status(200).send({success: true, msg: 'userfeed updated', user_feed: doc._doc.user_feed});
+                    }
+                });
+
             }
             else{
                 //there is no commits to push, mistake has been made

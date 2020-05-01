@@ -8,6 +8,7 @@ var jwt = require('jsonwebtoken');
 var cors = require('cors');
 var XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
 var btoa = require('btoa');
+var Commit = require('./Commits');
 
 var app = express();
 module.exports = app; // for testing
@@ -322,6 +323,32 @@ function fetchAllRepoCommitData(username, current_commits){
     return JSONObj;
 }
 
+function save_commits(posts, res) {
+    for(var i = 0; i < posts.length; i++) {
+        console.log("saving a commit")
+        var post = posts[i];
+        var commit = new Commit();
+        commit.repo_name = post.repo_name;
+        commit.github_username = post.login_name;
+        commit.author_name = post.author_name;
+        commit.message = post.commit_msg;
+        commit.date_time = post.commit_date;
+        commit.likes = 0;
+        commit.dislikes = 0;
+        console.log(commit.github_username)
+        if (commit.github_username){
+            commit.save(function(err) {
+                if (err) {
+                    console.log(err);
+                    res.status(400).send({message: "error during saving commits", posts})
+                }
+                //res.json({ success: true, message: 'commit made!' });
+            });
+        }
+
+    }
+}
+
 router.route('/limit')
     .get(function(req, res){
         const limit = new XMLHttpRequest();
@@ -623,12 +650,15 @@ router.route('/update/:github_user/:variable/:repo_name?')
                                 msg: filtered_newCommits ? 'User commits has been updated!' : 'No new commits were detected!',
                                 new_commits: filtered_newCommits
                             };
+                            //now add the new commits as objects to the database
+                            //shasave_commits(filtered_newCommits, res);
                             res.status(200).send(response);
                         });
                     }
                     catch (e) {
                         res.status(400).send(e);
                     }
+
                 }
                 else {
                     res.status(400).send({success: false, msg: 'No match for this user'});
@@ -719,6 +749,7 @@ router.post('/signup', function(req, res) {
         var user = new User();
         //retrieve all github information about this specific user
         var jsonInfo = fetchAllUserData(req.body.github_username);
+        console.log(jsonInfo)
         user.name = jsonInfo['name_key'];
         user.username = req.body.username;
         user.password = req.body.password;
@@ -727,11 +758,12 @@ router.post('/signup', function(req, res) {
         user.github_link = "https://github.com/" + req.body.github_username;
         user.bio = jsonInfo['bio_key'];
         user.new_commits = null;
-        user.repo_info = jsonInfo['repo_info']
+        user.repo_info = jsonInfo['repo_info'];
         // user.new_repo_info = null;
-        // user.repo_info = jsonInfo['repo_info'];
+        //user.repo_info = jsonInfo['repo_info'];
         // user.fe_repo_info = jsonInfo['fe_repo_info'];
         // save the user
+        posts = user.repo_info["posts"];
         user.save(function(err) {
             if (err) {
                 // duplicate entry
@@ -740,8 +772,8 @@ router.post('/signup', function(req, res) {
                 else
                     return res.send(err);
             }
-
-            res.json({ success: true, message: 'User created!' });
+            save_commits(posts, res);
+            res.json({ success: true, message: 'User created!', commits: posts});
         });
     }
 });
@@ -824,4 +856,4 @@ router.post('/signin', function(req, res) {
 
 
 app.use('/', router);
-app.listen(process.env.PORT || 8080);
+app.listen(process.env.PORT || 8090);

@@ -8,6 +8,8 @@ var jwt = require('jsonwebtoken');
 var cors = require('cors');
 var XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
 var btoa = require('btoa');
+const crypto = require("crypto");
+require('dotenv').config();
 
 var app = express();
 module.exports = app; // for testing
@@ -352,18 +354,18 @@ router.route('/discoveryFeed/:start')
             }
             //sort discovery field based on the date
             discovery_field.sort((a,b) => {
-               let comparison = 0;
-               if(a.commit_date < b.commit_date){
-                   comparison = 1;
-               }
-               else if(a.commit_date > b.commit_date){
+                let comparison = 0;
+                if(a.commit_date < b.commit_date){
+                    comparison = 1;
+                }
+                else if(a.commit_date > b.commit_date){
                     comparison = -1;
-               }
-               else{
+                }
+                else{
                     //well the dates are equal
-                   comparison = 0;
-               }
-               return comparison;
+                    comparison = 0;
+                }
+                return comparison;
             } );
             //return the first 20 elements
             let index = req.params.start;   //not needed anymore if we don't manipulate index. Staying in case we change our mind
@@ -433,6 +435,32 @@ router.route('/userfeed/:username/:start?')
                 //there is no commits to push, mistake has been made
                 res.status(400).send({success: false, msg: 'I didn\'t receive any commits to add to the user feed'})
             }
+        }
+    );
+
+//Here lies some quick and dirty
+router.route('/comment/:post_id')
+    .post(authJwtController.isAuthenticated, function (req, res) {
+                //retrieve user_feed and do something
+        console.log(req.body.post_id)
+        console.log(req.body.username)
+                User.findOne({username: req.body.username}, 'user_feed', function(err, doc){
+                    if(err){
+                        res.status(400).send({success: false, msg: 'Error Commenting!'});
+                    }
+                    else {
+                        let updateFeed = doc._doc.user_feed;
+                        for(let i = 0; i < updateFeed.length; i+=1){
+                            if(updateFeed[i].post_id === req.params.post_id){
+                                updateFeed[i].comments.push(req.body.comment)
+                                break;
+                            }
+                        }
+
+                        User.update({username:req.body.username},{$set:{'user_feed': updateFeed}},{upsert:true});
+                        res.status(200).send({success: true, msg: 'userfeed updated', user_feed: updateFeed});
+                    }
+                });
         }
     );
 
@@ -603,7 +631,13 @@ router.route('/update/:github_user/:variable/:repo_name?')
                             commit_array.push(jsonResult['new_commits'][i]);
                             //new_commits might have commits that aren't related to the user but related to repo, filter it out
                             if(jsonResult['new_commits'][i].login_name === req.params.github_user){
-                                filtered_newCommits.push(jsonResult['new_commits'][i]);
+                                filtered_newCommits.push(
+                                Object.assign({}, jsonResult['new_commits'][i],{
+                                    post_id :  crypto.randomBytes(16).toString("hex"),
+                                    likes : 0,
+                                    dislikes : 0,
+                                    comments: [],
+                                }))
                             }
                         }
                     }
@@ -698,7 +732,7 @@ router.route('/users/:username')
         var username = req.params.username;
         User.findOne({ username: username }).exec(function(err, user) {
             if (err) res.send(err);
-                res.send(user._doc);
+            res.send(user._doc);
         });
     });
 
@@ -797,29 +831,29 @@ router.route('/insults')
     });
 
 router.post('/signin', function(req, res) {
-        var userNew = new User();
-        userNew.name = req.body.name;
-        userNew.username = req.body.username;
-        userNew.password = req.body.password;
+    var userNew = new User();
+    userNew.name = req.body.name;
+    userNew.username = req.body.username;
+    userNew.password = req.body.password;
 
-        User.findOne({ username: userNew.username }).select('name username password').exec(function(err, user) {
-            if (err) res.send(err);
-            if (user){
-                user.comparePassword(userNew.password, function(isMatch){
-                    if (isMatch) {
-                        var userToken = {id: user._id, username: user.username};
-                        var token = jwt.sign(userToken, process.env.SECRET_KEY);
-                        res.json({success: true, token: 'JWT ' + token});
-                    }
-                    else {
-                        res.status(401).send({success: false, message: 'incorrect-password'});
-                    }
-                });
-            }
-            else
-                res.status(401).send({success: false, message: 'username-not-found'})
-        });
+    User.findOne({ username: userNew.username }).select('name username password').exec(function(err, user) {
+        if (err) res.send(err);
+        if (user){
+            user.comparePassword(userNew.password, function(isMatch){
+                if (isMatch) {
+                    var userToken = {id: user._id, username: user.username};
+                    var token = jwt.sign(userToken, process.env.SECRET_KEY);
+                    res.json({success: true, token: 'JWT ' + token});
+                }
+                else {
+                    res.status(401).send({success: false, message: 'incorrect-password'});
+                }
+            });
+        }
+        else
+            res.status(401).send({success: false, message: 'username-not-found'})
     });
+});
 
 
 

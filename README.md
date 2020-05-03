@@ -7,5 +7,7 @@ What if we could leverage these storylines to draw eyes and connect active devel
 
 Shamehub is our answer.
 
+This project works in conjunction with the [Shamehub](https://github.com/TrystanKaes/Shamehub)
+
 
 [![Run in Postman](https://run.pstmn.io/button.svg)](https://app.getpostman.com/run-collection/6a567e9ec351dec956e0)

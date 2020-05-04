@@ -385,8 +385,8 @@ router.route('/discoveryFeed/:start?')
 //shamehub username, not github username
 router.route('/userfeed/:username/:start?')
     .get(authJwtController.isAuthenticated, function(req,res){
-        if(req.params.start){
-            let index = req.params.start;   //this is not needed if we're not manipulating the index anymore
+        // if(req.params.start){
+            //let index = req.params.start;   //this is not needed if we're not manipulating the index anymore
             User.findOne({username: req.params.username}, 'user_feed', function(err, feed){
                 if(err){
                     res.status(400).send(err);
@@ -394,11 +394,11 @@ router.route('/userfeed/:username/:start?')
                 if(feed.user_feed === undefined){
                     res.status(400).send({success: false, msg: 'userfeed has not been created yet! Try doing a POST to create a userfeed before you try a GET'});
                 }
-                else if(feed.user_feed.length <= index){
-                    res.status(400).send({success: false, msg: 'Start is out of bounds! Please don\'t try to break me :('});
-                }
+                // else if(feed.user_feed.length <= index){
+                //     res.status(400).send({success: false, msg: 'Start is out of bounds! Please don\'t try to break me :('});
+                // }
                 else {
-                    let return_array = feed.user_feed.slice(index, index + 20);   //grab 20 elements from a specific start
+                    let return_array = feed.user_feed;//.slice(index, index + 20);   //grab 20 elements from a specific start
                     let returnJSON = {
                         success: true,
                         msg: 'Successfully retrieved a portion of userfeed',
@@ -407,10 +407,10 @@ router.route('/userfeed/:username/:start?')
                     res.status(200).send(returnJSON);
                 }
             })
-        }
-        else{
-            res.status(400).send({success: true, msg: 'Start was not specified, I need some number n to multiply with 20'})
-        }
+        // }
+        // else{
+        //     res.status(400).send({success: true, msg: 'Start was not specified, I need some number n to multiply with 20'})
+        // }
     })
     .post(authJwtController.isAuthenticated, function (req, res) {
             if(req.body.commits){

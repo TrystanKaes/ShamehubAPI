@@ -337,7 +337,8 @@ router.route('/limit')
         res.status(limit.status).send(JSON.parse(limit.responseText));
     });
 
-router.route('/discoveryFeed/:start')
+//changing the start index to be optional
+router.route('/discoveryFeed/:start?')
     .get(authJwtController.isAuthenticated, function(req, res){
         //retrieve the new_commits field from all users, sort it based on date, starting index at n * 20, return 20 from that starting index
         User.find({user_feed: {$exists: true}}, 'user_feed', function(err, doc){
@@ -345,7 +346,7 @@ router.route('/discoveryFeed/:start')
             //let's combine all of these user feeds together into one big feed
             let discovery_field = [];
             for(let i = 0; i < doc.length; ++i){
-                let size = doc[i]._doc.user_feed.length > 20 ? 20 : doc[i]._doc.user_feed.length;
+                let size = doc[i]._doc.user_feed.length// > 20 ? 20 : doc[i]._doc.user_feed.length;
                 for(let j = 0; j < size; ++j){
                     discovery_field.push(doc[i]._doc.user_feed[j]);
                 }
@@ -366,15 +367,15 @@ router.route('/discoveryFeed/:start')
                return comparison;
             } );
             //return the first 20 elements
-            let index = req.params.start;   //not needed anymore if we don't manipulate index. Staying in case we change our mind
+            //let index = req.params.start;   //not needed anymore if we don't manipulate index. Staying in case we change our mind
             if(req.params.start >= discovery_field.length){
                 res.status(400).send({success: false, msg: 'The index you gave me is out of bounds!The discovery field is not that big'});
             }
             else {
                 let returnJson = {
                     success: true,
-                    msg: 'Successfully retrieved 20 elements from the discovery field',
-                    discovery_field: discovery_field.slice(index, index + 20)
+                    msg: 'Successfully retrieved the discovery field',
+                    discovery_field: discovery_field//.slice(index, index + 20)
                 };
                 res.status(200).send(returnJson);
             }
